@@ -158,3 +158,38 @@ end
         @test isapprox(result["objective"], 11567.1; atol = 1e0)
     end
 end
+
+@testset "test qc ots with trilinear convex hull relaxation" begin
+    @testset "3-bus case" begin
+        result = run_ots("../test/data/case3.m", QCWRTriPowerModel, pajarito_solver)
+
+        check_br_status(result["solution"])
+
+        @test result["status"] == :Optimal
+        @test isapprox(result["objective"], 5746.7; atol = 1e0)
+    end
+    @testset "5-bus case" begin
+        result = run_ots("../test/data/case5.m", QCWRTriPowerModel, pajarito_solver)
+
+        check_br_status(result["solution"])
+
+        @test result["status"] == :Optimal
+        @test isapprox(result["objective"], 14999.7; atol = 1e0)
+    end
+    @testset "5-bus asymmetric case" begin
+        result = run_ots("../test/data/case5_asym.m", QCWRTriPowerModel, pajarito_solver)
+
+        check_br_status(result["solution"])
+
+        @test result["status"] == :Optimal
+        @test isapprox(result["objective"], 14999.7; atol = 1e0)
+    end
+    @testset "6-bus case" begin
+        result = run_ots("../test/data/case6.m", QCWRTriPowerModel, pajarito_solver)
+
+        check_br_status(result["solution"])
+
+        @test result["status"] == :Optimal
+        @test isapprox(result["objective"], 11567.1; atol = 1e0)
+    end
+end
