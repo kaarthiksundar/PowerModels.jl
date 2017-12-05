@@ -295,7 +295,7 @@ function relaxation_trilinear_on_off(m, x, y, z, w, lambda, on_off)
 
     # z correponds to either cs or si which can be safely pushed to zero
     @constraint(m, z == (lambda[1] + lambda[3] + lambda[5] + lambda[7])*z_lb +
-                        (lambda[2] + lambda[4] + lambda[6] + lambda[8])*z_ub))
+                        (lambda[2] + lambda[4] + lambda[6] + lambda[8])*z_ub)
 
     @constraint(m, sum(lambda) == on_off)
 end

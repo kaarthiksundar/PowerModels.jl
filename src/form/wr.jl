@@ -619,7 +619,7 @@ function variable_cosine_on_off{T <: QCWRForm}(pm::GenericPowerModel{T}, n::Int=
 end
 
 ""
-function variable_sine_on_off{T <: QCWRForm}(pm::GenericPowerModel, n::Int=pm.cnw)
+function variable_sine_on_off{T <: QCWRForm}(pm::GenericPowerModel{T}, n::Int=pm.cnw)
     pm.var[:nw][n][:si] = @variable(pm.model,
         [l in keys(pm.ref[:nw][n][:branch])], basename="$(n)_si",
         lowerbound = min(0, sin(pm.ref[:nw][n][:branch][l]["angmin"])),
@@ -776,7 +776,7 @@ function variable_voltage{T <: QCWRTriForm}(pm::GenericPowerModel{T}, n::Int=pm.
 
     variable_voltage_angle_difference(pm, n; kwargs...)
     variable_voltage_magnitude_product(pm, n; kwargs...)
-    variable_multipliers(pm, n; kwargs...)
+    variable_multipliers_on_off(pm, n; kwargs...)
     variable_cosine(pm, n; kwargs...)
     variable_sine(pm, n; kwargs...)
     variable_current_magnitude_sqr(pm, n; kwargs...)
@@ -826,9 +826,15 @@ function constraint_voltage{T <: QCWRTriForm}(pm::GenericPowerModel{T}, n::Int)
     end
 end
 
-""
-function variable_voltage_magnitude_product_on_off{T <: QCWRTriForm}(pm::GenericPowerModel{T}, n::Int=pm.cnw)
-    # do nothing - no lifted variables required for voltage variable product
+"creates lambda variables for convex combination model on off model"
+function variable_multipliers_on_off{T <: QCWRTriForm}(pm::GenericPowerModel{T}, n::Int=pm.cnw)
+    pm.var[:nw][n][:lambda_wr] = @variable(pm.model,
+        [l in keys(pm.ref[:nw][n][:branch]), i=1:8], basename="$(n)_lambda_wr",
+        lowerbound = 0, upperbound = 1)
+
+    pm.var[:nw][n][:lambda_wi] = @variable(pm.model,
+        [l in keys(pm.ref[:nw][n][:branch]), i=1:8], basename="$(n)_lambda_wi",
+        lowerbound = 0, upperbound = 1)
 end
 
 ""
@@ -843,8 +849,7 @@ function variable_voltage_on_off{T <: QCWRTriForm}(pm::GenericPowerModel{T}, n::
     variable_voltage_product_on_off(pm, n; kwargs...)
 
     variable_voltage_angle_difference_on_off(pm, n; kwargs...)
-    variable_voltage_magnitude_product_on_off(pm, n; kwargs)
-    variable_multipliers(pm, n; kwargs...)
+    variable_multipliers_on_off(pm, n; kwargs...)
     variable_cosine_on_off(pm, n; kwargs...)
     variable_sine_on_off(pm, n; kwargs...)
     variable_current_magnitude_sqr_on_off(pm, n; kwargs...) # includes 0, but needs new indexs
