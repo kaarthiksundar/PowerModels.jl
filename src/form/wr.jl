@@ -1,7 +1,8 @@
 export
     SOCWRPowerModel, SOCWRForm,
     QCWRPowerModel, QCWRForm,
-    QCWRTriPowerModel, QCWRTriForm
+    QCWRTriPowerModel, QCWRTriForm,
+    QCWRConvPowerModel, QCWRConvForm
 
 ""
 abstract type AbstractWRForm <: AbstractPowerFormulation end
@@ -810,5 +811,91 @@ function constraint_voltage(pm::GenericPowerModel{T}, n::Int) where T <: QCWRTri
             constraint_power_magnitude_link(pm, n, i)
         end
     end
+end
 
+
+""
+abstract type QCWRConvForm <: QCWRForm end
+
+""
+const QCWRConvPowerModel = GenericPowerModel{QCWRConvForm}
+
+"default QC convex hull model constructor"
+function QCWRConvPowerModel(data::Dict{String,Any}; kwargs...)
+    return GenericPowerModel(data, QCWRConvForm; kwargs...)
+end
+
+
+""
+function variable_voltage_magnitude_product(pm::GenericPowerModel{T}, n::Int=pm.cnw) where T <: QCWRConvForm
+    # do nothing - no lifted variables required for voltage variable magnitude product
+end
+
+""
+function variable_voltage_product(pm::GenericPowerModel{T}, n::Int=pm.cnw) where T <: QCWRConvForm 
+    # do nothing - no lifted variables required for variable voltage product
+end 
+
+"creates lambda variables for convex combination model"
+function variable_multipliers(pm::GenericPowerModel{T}, n::Int=pm.cnw) where T <: QCWRConvForm
+    buspairs = pm.ref[:nw][n][:buspairs]
+    pm.var[:nw][n][:lambda] = @variable(pm.model,
+        [bp in keys(pm.ref[:nw][n][:buspairs]), i=1:16], basename="$(n)_lambda",
+        lowerbound = 0, upperbound = 1)
+end
+
+""
+function variable_voltage(pm::GenericPowerModel{T}, n::Int=pm.cnw; kwargs...) where T <: QCWRConvForm
+    variable_voltage_angle(pm, n; kwargs...)
+    variable_voltage_magnitude(pm, n; kwargs...)
+
+    variable_voltage_magnitude_sqr(pm, n; kwargs...)
+    variable_voltage_product(pm, n; kwargs...)
+
+    variable_voltage_angle_difference(pm, n; kwargs...)
+    variable_voltage_magnitude_product(pm, n; kwargs...)
+    variable_multipliers(pm, n; kwargs...)
+    variable_cosine(pm, n; kwargs...)
+    variable_sine(pm, n; kwargs...)
+    variable_current_magnitude_sqr(pm, n; kwargs...)
+end
+
+""
+function constraint_voltage(pm::GenericPowerModel{T}, n::Int) where T <: QCWRConvForm
+    v = pm.var[:nw][n][:vm]
+    t = pm.var[:nw][n][:va]
+
+    td = pm.var[:nw][n][:td]
+    si = pm.var[:nw][n][:si]
+    cs = pm.var[:nw][n][:cs]
+
+    w = pm.var[:nw][n][:w]
+    lambda = pm.var[:nw][n][:lambda]
+
+    for (i,b) in pm.ref[:nw][n][:bus]
+        relaxation_sqr(pm.model, v[i], w[i])
+    end
+
+    for bp in keys(pm.ref[:nw][n][:buspairs])
+        i,j = bp
+        @constraint(pm.model, t[i] - t[j] == td[bp])
+
+        relaxation_sin(pm.model, td[bp], si[bp])
+        relaxation_cos(pm.model, td[bp], cs[bp])
+        relaxation_trilinear_sum(pm.model, v[i], v[j], cs[bp], si[bp], lambda[bp,:])
+
+        # this constraint is redudant and useful for debugging
+        #relaxation_complex_product(pm.model, w[i], w[j], wr[bp], wi[bp])
+   end
+
+   for (i,branch) in pm.ref[:nw][n][:branch]
+        pair = (branch["f_bus"], branch["t_bus"])
+        buspair = pm.ref[:nw][n][:buspairs][pair]
+
+        # to prevent this constraint from being posted on multiple parallel branchs
+        if buspair["branch"] == i
+            constraint_power_magnitude_sqr(pm, n, i)
+            constraint_power_magnitude_link(pm, n, i)
+        end
+    end
 end
