@@ -237,3 +237,52 @@ function relaxation_trilinear(m, x, y, z, w, lambda)
                         (lambda[2] + lambda[4] + lambda[6] + lambda[8])*z_ub)
     @constraint(m, sum(lambda) == 1)
 end 
+
+
+"""
+convex hull relaxation of sum of trilinear terms
+
+"""
+function relaxation_trilinear(m, a, b, x, y, lambda)
+    a_ub = getupperbound(a)
+    a_lb = getlowerbound(a)
+    b_ub = getupperbound(b)
+    b_lb = getlowerbound(b)
+    x_ub = getupperbound(x)
+    x_lb = getlowerbound(x)
+    y_ub = getupperbound(y)
+    y_lb = getlowerbound(y)
+
+    @assert length(lambda) == 16
+
+    w_val = [a_lb * b_lb * x_lb * y_lb 
+             a_lb * b_lb * x_lb * y_ub  
+             a_lb * b_lb * x_ub * y_lb
+             a_lb * b_lb * x_ub * y_ub 
+             a_lb * b_ub * x_lb * y_lb
+             a_lb * b_ub * x_lb * y_ub
+             a_lb * b_ub * x_ub * y_lb
+             a_lb * b_ub * x_ub * y_ub
+             a_ub * b_lb * x_lb * y_lb 
+             a_ub * b_lb * x_lb * y_ub  
+             a_ub * b_lb * x_ub * y_lb
+             a_ub * b_lb * x_ub * y_ub 
+             a_ub * b_ub * x_lb * y_lb
+             a_ub * b_ub * x_lb * y_ub
+             a_ub * b_ub * x_ub * y_lb
+             a_ub * b_ub * x_ub * y_ub]
+
+    @constraint(m, a == (lambda[1] + lambda[2] + lambda[3] + lambda[4] + lambda[5] + lambda[6] + lambda[7] + lambda[8]) * a_lb +
+                        (lambda[9] + lambda[10] + lambda[11] + lambda[12] + lambda[13] + lambda[14] + lambda[15] + lambda[16]) * a_ub)
+    
+    @constraint(m, b == (lambda[1] + lambda[2] + lambda[3] + lambda[4] + lambda[9] + lambda[10] + lambda[11] + lambda[12]) * b_lb +
+                        (lambda[5] + lambda[6] + lambda[7] + lambda[8] + lambda[13] + lambda[14] + lambda[15] + lambda[16]) * b_ub)
+
+    @constraint(m, x == (lambda[1] + lambda[2] + lambda[5] + lambda[6] + lambda[9] + lambda[10] + lambda[13] + lambda[14]) * x_lb +
+                        (lambda[3] + lambda[4] + lambda[7] + lambda[8] + lambda[11] + lambda[12] + lambda[15] + lambda[16]) * x_ub)
+
+    @constraint(m, y == (lambda[1] + lambda[3] + lambda[5] + lambda[7] + lambda[9] + lambda[11] + lambda[13] + lambda[15]) * y_lb +
+                        (lambda[2] + lambda[4] + lambda[6] + lambda[8] + lambda[10] + lambda[12] + lambda[14] + lambda[16]) * y_ub)
+
+    @constraint(m, sum(lambda) == 1)
+end 
